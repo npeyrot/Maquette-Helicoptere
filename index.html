@@ -1,0 +1,1170 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+  <head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Helicopter Interface - Interactive Prototype</title>
+
+    <style>
+      /* ==========================================================================
+        1. Design tokens : Central colours and reusable values used throughout the interface.
+        ========================================================================== */
+      
+      :root{
+        --bg:#07111f;
+        --panel:#101c2b;
+        --panel2:#142235;
+        --line:#2a3a4f;
+        --blue:#2f7df6;
+        --green:#22c55e;
+        --grey:#5b6470;
+        --red:#e5484d;
+        --text:#f3f7fc;
+        --muted:#91a0b4;
+      }
+      
+      /* ==========================================================================
+        2. Global layout and typography
+        ========================================================================== */
+      *{
+        box-sizing:border-box
+      }
+
+      html,body{
+        margin:0;
+        min-height:100%;
+        background:#060b13;
+        color:var(--text);
+        font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif
+      }
+
+      body{
+        display:grid;
+        place-items:center;
+        padding:22px
+      }
+
+      button{
+        font:inherit;
+        color:inherit;
+        border:0;
+        cursor:pointer;
+        touch-action:manipulation;
+        transition:background .2s ease,transform .18s ease,box-shadow .2s ease,opacity .2s ease
+      }
+
+      button:focus-visible{
+        outline:3px solid #a7c7ff;
+        outline-offset:3px
+      }
+
+      .prototype-wrap{
+        width:min(100%,800px)
+      }
+
+      .device-label{
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+        margin:0 4px 12px;
+        color:#8192a8;
+        font-size:12px;
+        letter-spacing:.14em;
+        text-transform:uppercase
+      }
+
+      .device{
+        width:100%;
+        aspect-ratio:2/3;
+        max-height:calc(100vh - 84px);
+        min-height:600px;
+        position:relative;
+        overflow:hidden;
+        border:1px solid #304157;
+        border-radius:30px;
+        background:var(--bg);
+        box-shadow:0 28px 90px #0009,inset 0 0 0 5px #0a1421
+      }
+
+      .map{
+        position:absolute;
+        inset:0;
+        background:#0b1724;
+        overflow:hidden;
+        cursor:pointer
+      }
+
+      .map svg{
+        width:100%;
+        height:100%;
+        display:block
+      }
+
+      .map-shade{
+        position:absolute;
+        inset:0;
+        background:linear-gradient(180deg,#07111f9c 0%,transparent 20%,transparent 64%,#07111f7d 100%);
+        pointer-events:none
+      }
+
+      .topbar{
+        position:absolute;
+        top:20px;
+        left:22px;
+        right:22px;
+        display:flex;
+        justify-content:center;
+        align-items:center;
+        pointer-events:none
+      }
+
+      .route-label{
+        padding:10px 16px;
+        border:1px solid #40516a88;
+        border-radius:100px;
+        background:#0a1524d9;
+        backdrop-filter:blur(12px);
+        font-size:12px;
+        font-weight:700;
+        letter-spacing:.16em;
+        text-transform:uppercase;
+        color:#cbd7e7
+      }
+
+      .status{
+        display:none;
+        position:absolute;
+        top:24px;
+        left:24px;
+        align-items:center;
+        gap:8px;
+        color:#b2c0d2;
+        font-size:11px;
+        letter-spacing:.12em;
+        text-transform:uppercase
+      }
+
+      .status-dot{
+        width:7px;
+        height:7px;
+        background:var(--green);
+        border-radius:50%;
+        box-shadow:0 0 10px #22c55e88
+      }
+
+      .map-info{
+        position:absolute;
+        left:24px;
+        top:82px;
+        display:grid;
+        gap:7px;
+        pointer-events:none
+      }
+
+      .info-chip{
+        background:#101e2dcc;
+        border:1px solid #34455b;
+        border-radius:10px;
+        padding:10px 12px;
+        min-width:120px;
+        backdrop-filter:blur(8px)
+      }
+
+      .info-chip span{
+        display:block;
+        font-size:9px;
+        color:#8193aa;
+        letter-spacing:.13em;
+        text-transform:uppercase;
+        margin-bottom:4px
+      }
+
+      .info-chip strong{
+        font-size:13px;
+        letter-spacing:.02em
+      }
+
+      .map-legend{
+        position:absolute;
+        right:24px;
+        top:82px;
+        display:flex;
+        align-items:center;
+        gap:8px;
+        background:#101e2dcc;
+        border:1px solid #34455b;
+        border-radius:10px;
+        padding:10px 12px;
+        font-size:10px;
+        color:#9eb0c5;
+        letter-spacing:.08em;
+        text-transform:uppercase;
+        pointer-events:none
+      }
+
+      .legend-line{
+        width:22px;
+        height:3px;
+        background:#4b94ff;
+        border-radius:3px;
+        box-shadow:0 0 10px #4b94ff77
+      }
+
+      .map-hint{
+        position:absolute;
+        left:50%;
+        top:50%;
+        transform:translate(-50%,-50%);
+        color:#8295ad;
+        font-size:11px;
+        letter-spacing:.16em;
+        text-transform:uppercase;
+        white-space:nowrap;
+        opacity:.75;
+        pointer-events:none
+      }
+
+      /* ==========================================================================
+        3. Flight-screen controls (A/C, DEMIST and OFF) : Grey = Idle, Blue = Selected A/C and Green = Active DEMIST.
+        ========================================================================== */
+      .bottom-bar{
+        position:absolute;
+        z-index:5;
+        left:18px;
+        right:18px;
+        bottom:18px;
+        height:70px;
+        display:grid;
+        grid-template-columns:repeat(3,1fr);
+        border:1px solid #41516a;
+        border-radius:17px;
+        overflow:hidden;
+        background:#101c2b;
+        box-shadow:0 12px 34px #0007;
+        backdrop-filter:blur(18px);
+        transition:opacity .2s ease,transform .2s ease
+      }
+
+      .bottom-bar.hidden{
+        opacity:0;
+        transform:translateY(18px);
+        pointer-events:none
+      }
+
+      .bottom-btn{
+        min-width:0;
+        min-height:56px;
+        background:var(--grey);
+        font-size:clamp(11px,2.1vw,15px);
+        font-weight:800;
+        letter-spacing:.025em;
+        white-space:nowrap
+      }
+
+      .bottom-btn+ .bottom-btn{
+        border-left:1px solid #0c1b30
+      }
+
+      .bottom-btn:hover{
+        filter:brightness(1.12)
+      }
+
+      .bottom-btn:active{
+        transform:scale(.985)
+      }
+
+      .bottom-btn.active{
+        background:var(--blue);
+        box-shadow:inset 0 0 0 1px #ffffff20
+      }
+
+      .bottom-btn.off{
+        background:var(--grey)
+      }
+
+      .bottom-btn.disabled{
+        background:#4d5868;
+        color:#f0f3f7
+      }
+
+      .toast{
+        position:absolute;
+        z-index:20;
+        top:72px;
+        left:50%;
+        transform:translate(-50%,-12px);
+        opacity:0;
+        pointer-events:none;
+        display:flex;
+        align-items:center;
+        gap:10px;
+        white-space:nowrap;
+        background:#17263a;
+        border:1px solid #3b506b;
+        border-radius:14px;
+        padding:13px 17px;
+        box-shadow:0 12px 30px #0007;
+        font-size:13px;
+        font-weight:650;
+        transition:opacity .2s ease,transform .2s ease
+      }
+
+      .toast.show{
+        opacity:1;
+        transform:translate(-50%,0)
+      }
+
+      .toast-icon{
+        width:27px;
+        height:27px;
+        display:grid;
+        place-items:center;
+        border-radius:8px;
+        background:#233e5d;
+        color:#a7cbff;
+        font-size:15px
+      }
+
+      /* ==========================================================================
+        4. Climate-control panel
+        ========================================================================== */
+      .panel{
+        position:absolute;
+        z-index:4;
+        left:0;
+        right:0;
+        bottom:0;
+        height:48%;
+        min-height:390px;
+        max-height:560px;
+        background:linear-gradient(155deg,#152438,#0d1827 78%);
+        border:1px solid #40516a;
+        border-bottom:0;
+        border-radius:25px 25px 0 0;
+        box-shadow:0 -22px 60px #0008;
+        transform:translateY(110%);
+        opacity:0;
+        transition:transform .22s cubic-bezier(.2,.8,.2,1),opacity .2s ease;
+        display:flex;
+        flex-direction:column;
+        padding:14px 17px 16px
+      }
+
+      .panel.open{
+        transform:translateY(0);
+        opacity:1
+      }
+
+      .panel-handle{
+        width:42px;
+        height:4px;
+        background:#5d6e84;
+        border-radius:4px;
+        margin:0 auto 13px;
+        flex-shrink:0
+      }
+
+      .panel-header{
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap:12px;
+        margin-bottom:13px;
+        flex-shrink:0
+      }
+
+      .tabs{
+        display:flex;
+        gap:7px
+      }
+
+      .tab{
+        height:42px;
+        min-width:74px;
+        padding:0 17px;
+        border-radius:10px;
+        background:var(--grey);
+        font-size:12px;
+        font-weight:850;
+        letter-spacing:.1em
+      }
+
+      .tab.selected{
+        background:var(--blue);
+        box-shadow:0 0 18px #2f7df633
+      }
+
+      .panel-title{
+        font-size:10px;
+        color:#8da0b8;
+        letter-spacing:.15em;
+        text-transform:uppercase;
+        font-weight:800
+      }
+
+      .zone-live{
+        font-size:10px;
+        color:#6f829b;
+        letter-spacing:.1em
+      }
+
+      .controls{
+        display:grid;
+        grid-template-columns:1.05fr 1fr .95fr;
+        gap:12px;
+        min-height:0;
+        flex:1
+      }
+
+      .col{
+        min-width:0;
+        display:flex;
+        flex-direction:column;
+        gap:9px
+      }
+
+      .section-label{
+        font-size:10px;
+        color:#91a4bb;
+        text-transform:uppercase;
+        letter-spacing:.12em;
+        font-weight:800;
+        margin-bottom:1px
+      }
+
+      .frame{
+        border:1px solid #34465d;
+        border-radius:13px;
+        padding:7px;
+        display:flex;
+        flex-direction:column;
+        gap:7px;
+        background:#0a1522a8;
+        flex:1;
+        min-height:0
+      }
+
+      .air-btn{
+        flex:1;
+        min-height:56px;
+        border-radius:10px;
+        background:var(--grey);
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        gap:8px;
+        font-size:11px;
+        font-weight:800;
+        letter-spacing:.04em
+      }
+
+      .air-btn.selected{
+        background:var(--blue);
+        box-shadow:0 0 16px #2f7df633
+      }
+
+      .air-btn svg{
+        width:29px;
+        height:35px;
+        flex-shrink:0
+      }
+
+      .temp-wrap{
+        display:flex;
+        flex-direction:column;
+        align-items:center;
+        justify-content:center;
+        gap:5px;
+        min-height:0;
+        flex:1
+      }
+
+      .temp-arrow{
+        width:100%;
+        min-height:56px;
+        max-height:72px;
+        border-radius:14px;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        gap:7px;
+        font-size:25px;
+        font-weight:800;
+        box-shadow:inset 0 0 0 1px #ffffff16
+      }
+
+      .temp-arrow .arrow{
+        font-size:28px;
+        line-height:1
+      }
+
+      .temp-arrow.warm{
+        background:linear-gradient(135deg,#e77b36,#c83d3d)
+      }
+
+      .temp-arrow.cold{
+        background:linear-gradient(135deg,#2f9de8,#45d4df);
+        color:#06182a
+      }
+
+      .temp-arrow:active{
+        transform:scale(.94);
+        filter:brightness(1.25)
+      }
+
+      .temp-value{
+        font-size:clamp(23px,4.4vw,34px);
+        font-weight:800;
+        letter-spacing:-.055em;
+        font-variant-numeric:tabular-nums;
+        white-space:nowrap
+      }
+
+      .temp-caption{
+        height:25px;
+        max-width:100%;
+        font-size:9px;
+        color:#9db0c8;
+        text-align:center;
+        line-height:1.35;
+        white-space:nowrap;
+        overflow:hidden;
+        text-overflow:ellipsis
+      }
+
+      .power-box{
+        border:1px solid #34465d;
+        border-radius:13px;
+        padding:10px 7px 8px;
+        background:#0a1522a8
+      }
+
+      .power-levels{
+        display:flex;
+        align-items:flex-end;
+        justify-content:center;
+        gap:6px;
+        height:44px
+      }
+
+      .power-btn{
+        width:30%;
+        height:28px;
+        border-radius:7px;
+        background:var(--grey);
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        min-width:0
+      }
+
+      .power-btn:nth-child(2){
+        height:35px
+      }
+      
+      .power-btn:nth-child(3){
+        height:42px
+      }
+
+      .power-btn.selected{
+        background:var(--blue);
+        box-shadow:0 0 14px #2f7df633
+      }
+
+      .power-names{
+        display:flex;
+        justify-content:space-around;
+        color:#8194ac;
+        font-size:8px;
+        text-transform:uppercase;
+        letter-spacing:.06em;
+        margin-top:8px
+      }
+
+      .toggles{
+        display:grid;
+        grid-template-columns:1fr 1fr;
+        gap:6px;
+        margin-top:auto
+      }
+
+      .toggle{
+        height:50px;
+        min-height:50px;
+        border-radius:13px;
+        background:var(--grey);
+        font-size:10px;
+        font-weight:850;
+        letter-spacing:.05em;
+        display:flex;
+        flex-direction:column;
+        align-items:center;
+        justify-content:center;
+        gap:3px
+      }
+
+      .toggle.active{
+        background:var(--green);
+        box-shadow:0 0 14px #22c55e22
+      }
+
+      .toggle small{
+        font-size:8px;
+        font-weight:700;
+        opacity:.85
+      }
+
+      .recirculation-note{
+        min-height:22px;
+        display:flex;
+        justify-content:center;
+        align-items:center;
+        gap:5px;
+        color:#9dddb5;
+        font-size:8px;
+        line-height:1.2;
+        text-align:center
+      }
+
+      .recirculation-note .circle{
+        font-size:13px
+      }
+
+      .panel-footer{
+        visibility:hidden;
+        position:absolute;
+        bottom:86px;
+        left:20px;
+        right:20px;
+        color:#70839b;
+        font-size:9px;
+        letter-spacing:.04em;
+        display:flex;
+        justify-content:space-between;
+        pointer-events:none
+      }
+
+      /* ==========================================================================
+        5. Responsive layout
+        ========================================================================== */
+      @media(max-width:520px){
+        body{
+          padding:0;
+          background:#07111f
+        }
+
+        .prototype-wrap{
+          width:100%
+        }
+        
+        .device-label{
+          display:none
+        }
+
+        .device{
+          border-radius:0;
+          border:0;
+          min-height:100svh;
+          max-height:none;
+          aspect-ratio:auto;
+          height:100svh;
+          box-shadow:none
+        }
+        
+        .panel{
+          height:52%;
+          min-height:390px;
+          padding:12px 11px 16px
+        }
+
+        .controls{
+          gap:7px;
+          grid-template-columns:1.05fr .95fr .95fr
+        }
+
+        .tab{
+          min-width:62px;
+          padding:0 12px
+        }
+
+        .panel-header{
+          margin-bottom:9px
+        }
+
+        .air-btn{
+          flex-direction:column;
+          gap:2px;
+          font-size:9px
+        }
+
+        .air-btn svg{
+          height:28px
+        }
+
+        .power-btn{
+          width:28%
+        }
+
+        .bottom-bar{
+          left:12px;
+          right:12px;
+          bottom:12px;
+          height:64px
+        }
+
+        .bottom-btn{
+          font-size:11px
+        }
+
+        .map-info{
+          left:14px;
+          top:76px
+        }
+        
+        .map-legend{
+          right:14px;
+          top:76px
+        }
+
+        .status{
+          left:15px;
+          top:19px
+        }
+      }
+
+      @media(max-height:700px) and (min-width:521px){
+        .device{
+          min-height:0;
+          height:calc(100vh - 80px);
+          aspect-ratio:auto
+        }
+
+        .panel{
+          height:55%;
+          min-height:0;
+          padding-bottom:16px
+        }
+
+        .panel-footer{
+          bottom:72px
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+
+    <div class="prototype-wrap">
+
+      <div class="device-label">
+        <span>Dassault systems</span>
+        <span>Prototype 01</span>
+      </div>
+
+      <main class="device" id="device" aria-label="Helicopter environmental control system">
+
+        <div class="map" id="map" aria-label="Flight route map">
+
+          <svg viewBox="0 0 800 1200" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+
+            <defs>
+              <pattern id="grid" width="58" height="58" patternUnits="userSpaceOnUse"><path d="M58 0H0V58" fill="none" stroke="#26364a" stroke-width="1" opacity=".42"/></pattern>
+              <linearGradient id="terrain" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#14283a"/><stop offset="1" stop-color="#0c1b2a"/></linearGradient>
+              <filter id="glow"><feGaussianBlur stdDeviation="6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+            </defs>
+
+            <rect width="800" height="1200" fill="#0b1724"/><rect width="800" height="1200" fill="url(#grid)"/>
+
+            <path d="M-60 150L110 90 240 150 330 95 470 180 610 120 850 210 850 360 700 390 590 320 470 370 320 300 180 365 0 310Z" fill="url(#terrain)" opacity=".9"/>
+            <path d="M-40 570L100 500 220 555 300 490 410 545 510 485 650 535 850 470 850 720 700 770 590 710 430 785 310 720 180 770 0 700Z" fill="#102336" opacity=".9"/>
+            <path d="M-50 930L90 850 230 910 350 850 490 930 630 865 850 920 850 1240 0 1240Z" fill="#0e2030" opacity=".95"/>
+
+            <g fill="none" stroke-linecap="round">
+              <path d="M-30 250C120 290 140 410 290 420S520 350 850 465" stroke="#52657b" stroke-width="3" opacity=".35"/>
+              <path d="M-20 460C170 390 200 610 390 625S630 560 830 680" stroke="#52657b" stroke-width="2" opacity=".42"/>
+              <path d="M60 -30C150 160 250 190 270 360S220 620 310 780 470 1030 440 1230" stroke="#4d6076" stroke-width="2" opacity=".48"/>
+              <path d="M690 -30C590 180 650 290 550 440S620 700 680 850 620 1050 730 1230" stroke="#4d6076" stroke-width="2" opacity=".4"/>
+              <path d="M-30 790C170 750 260 860 380 850S610 800 830 900" stroke="#40566d" stroke-width="2" opacity=".35"/>
+              <path d="M90 190L210 255 330 240 420 315 540 300 680 350" stroke="#607187" stroke-width="1.4" opacity=".38"/>
+              <path d="M120 1030L220 960 340 990 490 1040 620 1000 760 1050" stroke="#607187" stroke-width="1.4" opacity=".35"/>
+            </g>
+
+            <g fill="#1a3042" stroke="#2b455b" stroke-width="1.5" opacity=".8">
+              <path d="M80 340l55-28 42 17 22 48-37 29-61-9z"/><path d="M500 220l64-25 53 33-11 52-57 18-43-29z"/>
+              <path d="M525 690l48-26 58 20 16 48-42 32-64-15z"/><path d="M140 850l51-21 48 27-9 50-54 22-43-35z"/>
+              <path d="M350 455l37-17 42 22-3 39-43 14-34-22z"/><path d="M300 1080l45-27 50 19 4 40-53 24-42-24z"/>
+            </g>
+
+            <g fill="#7c90a8" opacity=".65" font-size="13" font-family="Inter, sans-serif" letter-spacing="2">
+              <text x="105" y="405">SECTOR A</text>
+              <text x="535" y="325">RIDGE 04</text>
+              <text x="570" y="790">SECTOR C</text>
+              <text x="160" y="940">VALLEY</text>
+            </g>
+
+            <path d="M140 950C220 850 250 760 350 700S480 610 450 500 540 350 635 270" fill="none" stroke="#347ee9" stroke-width="13" opacity=".15" filter="url(#glow)"/>
+            <path d="M140 950C220 850 250 760 350 700S480 610 450 500 540 350 635 270" fill="none" stroke="#4b94ff" stroke-width="4" stroke-linecap="round" stroke-dasharray="1 0"/>
+            <path d="M140 950C220 850 250 760 350 700S480 610 450 500 540 350 635 270" fill="none" stroke="#b7d4ff" stroke-width="1.3" opacity=".8"/>
+
+            <g>
+              <circle cx="140" cy="950" r="12" fill="#0c1b2a" stroke="#71aaff" stroke-width="3"/><circle cx="140" cy="950" r="4" fill="#71aaff"/>
+              <circle cx="350" cy="700" r="11" fill="#0c1b2a" stroke="#71aaff" stroke-width="3"/><circle cx="350" cy="700" r="3.5" fill="#71aaff"/>
+              <circle cx="450" cy="500" r="11" fill="#0c1b2a" stroke="#71aaff" stroke-width="3"/><circle cx="450" cy="500" r="3.5" fill="#71aaff"/>
+              <circle cx="635" cy="270" r="12" fill="#0c1b2a" stroke="#22c55e" stroke-width="3"/><circle cx="635" cy="270" r="4" fill="#22c55e"/>
+            </g>
+
+            <g transform="translate(450 500) rotate(-28)" filter="url(#glow)">
+              <circle r="25" fill="#347ee9" opacity=".15"/><path d="M-7 -29L0 -38 7 -29 10 -6 27 8 27 13 7 6 6 24 15 30 15 34 0 30-15 34-15 30-6 24-7 6-27 13-27 8-10 -6Z" fill="#eaf4ff" stroke="#6caaff" stroke-width="2"/>
+            </g>
+
+          </svg>
+
+          <div class="map-shade"></div>
+
+          <div class="status">
+            <span class="status-dot"></span><span id="systemStatus">ONLINE</span>
+          </div>
+
+          <div class="topbar">
+            <div class="route-label">Route plan</div>
+          </div>
+
+          <div class="map-info">
+            <div class="info-chip">
+              <span>Flight phase</span><strong>EN ROUTE</strong>
+            </div>
+
+            <div class="info-chip">
+              <span>Waypoint</span><strong>WP · 04</strong>
+            </div>
+          </div>
+
+          <div class="map-legend">
+            <span class="legend-line"></span> 
+            Active route
+          </div>
+
+          <div class="map-hint">Flight path · 04 waypoints</div>
+
+        </div>
+
+        <div class="toast" id="toast">
+          <span class="toast-icon" id="toastIcon">♫</span>
+          <span id="toastText">Demisting started</span>
+        </div>
+
+        <section class="panel" id="panel" aria-label="Air conditioning controls">
+
+          <div class="panel-handle"></div>
+
+          <div class="panel-header">
+            <div class="tabs">
+              <button class="tab" id="cabTab" type="button">CAB</button>
+              <button class="tab selected" id="ckptTab" type="button">CKPT</button>
+            </div>
+
+            <div style="text-align:right">
+              <div class="panel-title">Climate control</div>
+              <div class="zone-live" id="zoneLive">COCKPIT ZONE</div>
+            </div>
+          </div>
+
+          <div class="controls">
+
+            <div class="col">
+              <div class="section-label">Airflow direction</div>
+
+              <div class="frame">
+                <button class="air-btn selected" id="faceBtn" type="button" aria-label="Airflow to face">
+                  <svg viewBox="0 0 40 48" fill="none" aria-hidden="true"><circle cx="16" cy="8" r="5" stroke="white" stroke-width="2.5"/><path d="M8 40V25c0-5 3-8 8-8s8 3 8 8v15M8 28H3m21 0h-5" stroke="white" stroke-width="2.5" stroke-linecap="round"/><path d="M29 8h8m-4-4 4 4-4 4" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  <span>FACE</span>
+                </button>
+                
+                <button class="air-btn" id="feetBtn" type="button" aria-label="Airflow to feet">
+                  <svg viewBox="0 0 40 48" fill="none" aria-hidden="true"><circle cx="16" cy="7" r="5" stroke="white" stroke-width="2.5"/><path d="M8 39V24c0-5 3-8 8-8s8 3 8 8v15M8 27H3m21 0h-5" stroke="white" stroke-width="2.5" stroke-linecap="round"/><path d="M16 30v13m-4-4 4 4 4-4" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  <span>FEET</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="col">
+              <div class="section-label" style="text-align:center">Temperature</div>
+
+              <div class="temp-wrap">
+                <button class="temp-arrow warm" id="upBtn" type="button" aria-label="Increase target temperature">
+                  <span class="arrow">↑</span>
+                  <span>+</span>
+                </button>
+
+                <div class="temp-value" id="tempValue">22.0°C</div>
+
+                <button class="temp-arrow cold" id="downBtn" type="button" aria-label="Decrease target temperature">
+                  <span class="arrow">↓</span>
+                  <span>-</span>
+                </button>
+
+                <div class="temp-caption" id="tempCaption"></div>
+              </div>
+            </div>
+            
+            <div class="col">
+              <div class="section-label">Power</div>
+
+              <div class="power-box">
+                <div class="power-levels">
+                  <button class="power-btn selected" id="power1" type="button" aria-label="Low power"></button>
+                  <button class="power-btn" id="power2" type="button" aria-label="Medium power"></button>
+                  <button class="power-btn" id="power3" type="button" aria-label="High power"></button>
+                </div>
+
+                <div class="power-names">
+                  <span>Low</span>
+                  <span>Med</span>
+                  <span>High</span>
+                </div>
+              </div>
+
+              <div class="toggles">
+                <button class="toggle" id="autoBtn" type="button">AUTO</button>
+                <button class="toggle" id="recircBtn" type="button">RECIRC</button>
+              </div>
+
+              <div class="recirculation-note" id="recircNote"></div>
+            </div>
+
+          </div>
+
+          <div class="panel-footer">
+            <span>ENVIRONMENTAL CONTROL</span>
+            <span id="panelFooterRight">CKPT · ACTIVE</span>
+          </div>
+
+        </section>
+
+        <div class="bottom-bar" id="bottomBar">
+          <button class="bottom-btn" id="acBtn" type="button">A/C · 22°C</button>
+          <button class="bottom-btn" id="demistBtn" type="button">DEMIST</button>
+          <button class="bottom-btn off" id="offBtn" type="button">OFF</button>
+        </div>
+
+      </main>
+
+    </div>
+
+    <script>
+
+      (() => {
+        'use strict';
+
+        /* ------------------------------------------------------------------------
+          1. DOM helpers and application state
+          ------------------------------------------------------------------------ */
+        const $ = (id) => document.getElementById(id);
+        const state = {
+          systemOn:true, panelOpen:false, activeZone:'CKPT', demist:false,
+          zones:{
+            CAB:{temp:22, airflow:'FACE', power:1, auto:false, recirc:false, current:26},
+            CKPT:{temp:22, airflow:'FACE', power:1, auto:false, recirc:false, current:26}
+          }
+        };
+
+        /* ------------------------------------------------------------------------
+          2. Timers : 
+          - idleTimer closes the climate panel after inactivity.
+          - autoTimer updates the simulated AUTO temperature.
+          - toastTimer hides short notifications.
+          - barTimer restores the bottom action bar after five seconds.
+          ------------------------------------------------------------------------ */
+        let idleTimer = null;
+        let autoTimer = null;
+        let toastTimer = null;
+        let reopenTimer = null; // Retained for compatibility with the existing flow.
+        let barTimer = null;
+
+        /* ------------------------------------------------------------------------
+          3. Active-zone helpers
+          ------------------------------------------------------------------------ */
+        const zone = () => state.zones[state.activeZone];
+        const fmt = (number) => Number(number).toFixed(1);
+
+        /* ------------------------------------------------------------------------
+          4. Notifications : Display a short message for three seconds
+          ------------------------------------------------------------------------ */
+        function toast(message, icon = '♫') {
+          $('toastText').textContent=message; $('toastIcon').textContent=icon;
+          $('toast').classList.add('show');
+          clearTimeout(toastTimer);
+          toastTimer=setTimeout(()=>$('toast').classList.remove('show'),1500);
+        }
+
+        /* ------------------------------------------------------------------------
+          5. Panel and screen visibility
+          ------------------------------------------------------------------------ */
+        function resetIdle(){
+          clearTimeout(idleTimer);
+          if(state.panelOpen) idleTimer=setTimeout(()=>closePanel(),10000);
+        }
+
+        function openPanel(){
+          if(!state.systemOn){state.systemOn=true;
+        }
+          clearTimeout(barTimer);
+          $('bottomBar').classList.add('hidden');
+          state.panelOpen=true;
+          $('panel').classList.add('open');
+          render();
+          resetIdle();
+        }
+
+        function closePanel(){
+          state.panelOpen=false;
+          $('panel').classList.remove('open');
+          $('bottomBar').classList.remove('hidden');
+          clearTimeout(idleTimer);
+        }
+
+        /* ------------------------------------------------------------------------
+          6. Render the current state : Updates labels, selected buttons and displayed values
+          ------------------------------------------------------------------------ */
+        function render(){
+          const z=zone();
+          $('acBtn').textContent=state.systemOn ? `A/C · ${Math.round(z.temp)}°C` : 'A/C · OFF';
+          $('acBtn').classList.toggle('disabled',!state.systemOn);
+          $('acBtn').classList.toggle('active',state.panelOpen && state.systemOn);
+          $('demistBtn').classList.toggle('active',state.demist);
+          $('demistBtn').classList.toggle('off',false);
+          $('offBtn').classList.toggle('off',false);
+          $('systemStatus').textContent=state.systemOn?'ECS ONLINE':'ECS OFFLINE';
+          $('cabTab').classList.toggle('selected',state.activeZone==='CAB');
+          $('ckptTab').classList.toggle('selected',state.activeZone==='CKPT');
+          $('zoneLive').textContent=state.activeZone==='CAB'?'CABIN ZONE':'COCKPIT ZONE';
+          $('panelFooterRight').textContent=`${state.activeZone} · ACTIVE`;
+          $('tempValue').textContent=fmt(z.temp)+'°C';
+          $('faceBtn').classList.toggle('selected',z.airflow==='FACE');
+          $('feetBtn').classList.toggle('selected',z.airflow==='FEET');
+          [1,2,3].forEach(n=>$('power'+n).classList.toggle('selected',n<=z.power));
+          $('autoBtn').classList.toggle('active',z.auto);
+          $('recircBtn').classList.toggle('active',z.recirc);
+          $('tempCaption').textContent=z.auto?`Auto: ${fmt(z.current)}°C → ${fmt(z.temp)}°C`:'';
+          $('recircNote').innerHTML=z.recirc?'<span class="circle">⟳</span><span>Cabin air recirculation on</span>':'';
+          $('panel').classList.toggle('open',state.panelOpen);
+          $('bottomBar').classList.toggle('hidden',state.panelOpen);
+        }
+
+        /* ------------------------------------------------------------------------
+          7. Automatic temperature regulation
+          ------------------------------------------------------------------------ */
+        function updatePowerForAuto(){
+          const gap=Math.abs(zone().current-zone().temp);
+          zone().power=gap>3?3:gap>1?2:1;
+        }
+
+        function startAutoLoop(){
+          clearInterval(autoTimer);
+          autoTimer=setInterval(()=>{
+            const z=zone();
+            if(!state.systemOn || !z.auto) return;
+            const gap=z.temp-z.current;
+            if(Math.abs(gap)>0.01){
+              z.current += Math.sign(gap)*Math.min(0.5,Math.abs(gap));
+              z.current=Math.round(z.current*10)/10;
+              updatePowerForAuto(); render();
+            }else{
+              z.current=z.temp;z.power=1;render();
+            }
+          },2000);
+        }
+
+        function disableAuto(){zone().auto=false;
+        render();
+        }
+
+        /* ------------------------------------------------------------------------
+          8. User interactions : Each listener updates the state, refreshes the interface and resets the inactivity timer where appropriate.
+          ------------------------------------------------------------------------ */
+        $('acBtn').addEventListener('click',()=>{
+          if(!state.systemOn){state.systemOn=true;
+        openPanel();
+        render();
+        return;
+        }
+          if(state.panelOpen) {resetIdle();
+        } else openPanel();
+        });
+        $('offBtn').addEventListener('click',()=>{
+          state.systemOn=false;state.demist=false;closePanel();
+          Object.values(state.zones).forEach(z=>z.auto=false);
+          render();toast('A/C system off','⏻');
+        });
+        $('demistBtn').addEventListener('click',()=>{
+          if(!state.systemOn) {state.systemOn=true;
+        }
+          state.demist=!state.demist;
+          render();toast(state.demist?'Demisting started':'Demisting stopped','♫');
+        });
+        $('cabTab').addEventListener('click',()=>{state.activeZone='CAB';
+        render();
+        resetIdle();
+        });
+        $('ckptTab').addEventListener('click',()=>{state.activeZone='CKPT';
+        render();
+        resetIdle();
+        });
+        $('faceBtn').addEventListener('click',()=>{zone().airflow='FACE';
+        render();
+        resetIdle();
+        });
+        $('feetBtn').addEventListener('click',()=>{zone().airflow='FEET';
+        render();
+        resetIdle();
+        });
+
+        function changeTemp(delta){
+          const z=zone();
+          if(z.auto) z.auto=false;
+          z.temp=Math.max(16,Math.min(30,Math.round((z.temp+delta)*10)/10));
+          render();resetIdle();
+        }
+        $('upBtn').addEventListener('click',()=>changeTemp(.5));
+        $('downBtn').addEventListener('click',()=>changeTemp(-.5));
+        [1,2,3].forEach(n=>$('power'+n).addEventListener('click',()=>{
+          if(zone().auto) disableAuto();
+          zone().power=n;render();resetIdle();
+        }));
+        $('autoBtn').addEventListener('click',()=>{
+          const z=zone();z.auto=!z.auto;
+          if(z.auto){updatePowerForAuto();
+        startAutoLoop();
+        }
+          render();resetIdle();
+        });
+        $('recircBtn').addEventListener('click',()=>{zone().recirc=!zone().recirc;
+        render();
+        resetIdle();
+        });
+        $('map').addEventListener('click',e=>{
+          if(state.panelOpen) return;
+          $('bottomBar').classList.add('hidden');
+          clearTimeout(barTimer);
+          barTimer=setTimeout(()=>{
+            if(!state.panelOpen) $('bottomBar').classList.remove('hidden');
+          },5000);
+        });
+        $('panel').addEventListener('pointerdown',resetIdle);
+        $('panel').addEventListener('click',resetIdle);
+        document.addEventListener('keydown',e=>{if(e.key==='Escape'&&state.panelOpen)closePanel();
+        });
+
+        /* ------------------------------------------------------------------------
+          9. Initial display
+          ------------------------------------------------------------------------ */
+        render();
+      })();
+      
+    </script>
+
+  </body>
+
+</html>
